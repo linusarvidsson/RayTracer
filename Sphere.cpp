@@ -15,13 +15,12 @@ Sphere::Sphere()
     objectMaterial = DIFFUSE;
 }
 
-Sphere::Sphere(Vertex center_, double radius_, ColorDbl color_)
+Sphere::Sphere(Vertex center_, double radius_, ColorDbl color_, Material material_)
 {
     center = center_;
     radius = radius_;
-    color = color_;
-    
-    objectMaterial = DIFFUSE;
+    objectColor = color_;
+    objectMaterial = material_;
 }
 
 bool Sphere::rayIntersection(Ray &ray)
@@ -41,7 +40,6 @@ bool Sphere::rayIntersection(Ray &ray)
             ray.intersection = ray.start + l * d;
             ray.normal = (ray.intersection - center) * (1 / radius);
             ray.intersection = ray.intersection + ray.normal * 0.0001;
-            ray.color = color;
             
             return true;
         }
@@ -75,4 +73,8 @@ bool Sphere::rayIntersection(Ray &ray)
 
 Material Sphere::material(){
     return objectMaterial;
+}
+
+ColorDbl Sphere::color(){
+    return objectColor;
 }

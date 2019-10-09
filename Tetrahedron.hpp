@@ -13,16 +13,17 @@
 
 class Tetrahedron : public Object {
 public:
-    ColorDbl color;
     
-    Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color_);
+    Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color, Material material);
     bool rayIntersection(Ray &ray);
     Triangle intersectedTriangle(Ray arg);
     Material material();
+    ColorDbl color();
     
 private:
     Triangle triangles[4];
     Material objectMaterial;
+    ColorDbl objectColor;
 };
 
 #endif /* Tetrahedron_hpp */

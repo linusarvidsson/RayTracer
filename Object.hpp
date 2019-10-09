@@ -14,7 +14,7 @@
 
 enum Material{
     DIFFUSE,
-    SPECULAR,
+    REFLECTIVE,
     TRANSPARENT
 };
 
@@ -23,6 +23,7 @@ public:
     virtual ~Object() = 0;
     virtual bool rayIntersection(Ray &ray) = 0;
     virtual Material material() = 0;
+    virtual ColorDbl color() = 0;
 };
 
 #endif /* Object_hpp */

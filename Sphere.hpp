@@ -20,17 +20,18 @@ class Vertex;
 class Sphere : public Object {
 public:
     Vertex center;
-    ColorDbl color;
     
     Sphere();
-    Sphere(Vertex center_, double radius_, ColorDbl color_);
+    Sphere(Vertex center_, double radius_, ColorDbl color_, Material material_);
     bool rayIntersection(Ray &arg);
     //Vertex intersectionPoint(Ray &arg);
     Material material();
+    ColorDbl color();
     
 private:
     double radius;
     Material objectMaterial;
+    ColorDbl objectColor;
 };
 
 #endif /* Sphere_hpp */

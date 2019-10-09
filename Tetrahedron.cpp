@@ -8,29 +8,35 @@
 #include "Tetrahedron.hpp"
 #include <iostream>
 
-Tetrahedron::Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color_){
-    color = color_;
+Tetrahedron::Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color, Material material){
+    objectColor = color;
+    objectMaterial = material;
     
-    triangles[0] = Triangle(a, b, c, color);
-    triangles[1] = Triangle(a, c, d, color);
-    triangles[2] = Triangle(b, d, c, color);
-    triangles[3] = Triangle(a, d, b, color);
+    triangles[0] = Triangle(a, b, c, objectColor, objectMaterial);
+    triangles[1] = Triangle(a, c, d, objectColor, objectMaterial);
+    triangles[2] = Triangle(b, d, c, objectColor, objectMaterial);
+    triangles[3] = Triangle(a, d, b, objectColor, objectMaterial);
     
-    objectMaterial = DIFFUSE;
 }
 
 bool Tetrahedron::rayIntersection(Ray &ray){
     // Loop through the tetrahedrons triangles and check if the ray intersects with any of them
+    
+    bool found = false;
+    
     for(int i = 0; i < 4; i++){
-        if (triangles[i].rayIntersection(ray)){
-            return true;
-        }
+        found = triangles[i].rayIntersection(ray) ? true : found;
     }
-    return false;
+    
+    return found;
 }
 
 Material Tetrahedron::material(){
     return objectMaterial;
+}
+
+ColorDbl Tetrahedron::color(){
+    return objectColor;
 }
 
 Triangle Tetrahedron::intersectedTriangle(Ray ray){
