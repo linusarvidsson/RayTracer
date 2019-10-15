@@ -1,10 +1,3 @@
-//
-//  Vertex.hpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-13.
-//
-
 #ifndef Vertex_hpp
 #define Vertex_hpp
 

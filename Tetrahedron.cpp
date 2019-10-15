@@ -1,10 +1,3 @@
-//
-//  Tetrahedron.cpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-17.
-//
-
 #include "Tetrahedron.hpp"
 #include <iostream>
 
@@ -16,7 +9,6 @@ Tetrahedron::Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color,
     triangles[1] = Triangle(a, c, d, objectColor, objectMaterial);
     triangles[2] = Triangle(b, d, c, objectColor, objectMaterial);
     triangles[3] = Triangle(a, d, b, objectColor, objectMaterial);
-    
 }
 
 bool Tetrahedron::rayIntersection(Ray &ray){

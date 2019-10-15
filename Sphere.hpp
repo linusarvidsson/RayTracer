@@ -1,10 +1,3 @@
-//
-//  Sphere.hpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-18.
-//
-
 #ifndef Sphere_hpp
 #define Sphere_hpp
 
@@ -24,7 +17,6 @@ public:
     Sphere();
     Sphere(Vertex center_, double radius_, ColorDbl color_, Material material_);
     bool rayIntersection(Ray &arg);
-    //Vertex intersectionPoint(Ray &arg);
     Material material();
     ColorDbl color();
     

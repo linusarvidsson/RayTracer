@@ -37,7 +37,8 @@ bool Triangle::rayIntersection(Ray &ray)
     
     if ((t > 0) && (u <= 1) && (u >= 0) && (v <= 1) && (v >= 0) && (u + v <= 1))
     {
-        ray.normal = normal;
+        ray.t = t;
+        ray.objectNormal = normal;
         ray.intersection = a + E1 * u + E2 * v + normal * 0.01;
         return true;
     }
@@ -53,18 +54,3 @@ Material Triangle::material(){
 ColorDbl Triangle::color(){
     return objectColor;
 }
-
-//Vertex Triangle::intersectionPoint(Ray ray)
-//{
-//    Vector T = ray.start - a;
-//    Vector E1 = b - a;
-//    Vector E2 = c - a;
-//    Vector D = ray.end - ray.start;
-//    Vector P = D.cross(E2);
-//    Vector Q = T.cross(E1);
-//
-//    double u = P.dot(T) / P.dot(E1);
-//    double v = Q.dot(D) / P.dot(E1);
-//
-//    return
-//}

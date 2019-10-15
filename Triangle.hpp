@@ -20,7 +20,6 @@ public:
     Triangle();
     Triangle(Vertex a_, Vertex b_, Vertex c_, ColorDbl color_, Material material_);
     bool rayIntersection(Ray &arg);
-    //Vertex intersectionPoint(Ray &arg);
     
     Material material();
     ColorDbl color();

@@ -1,10 +1,3 @@
-//
-//  Vector.hpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-13.
-//
-
 #ifndef Vector_hpp
 #define Vector_hpp
 
@@ -17,13 +10,14 @@ public:
     
     Vector();
     Vector(double x_, double y_, double z_);
-    Vector operator-(Vector rhs);
-    Vector operator*(double rhs);
     Vector cross(Vector rhs);
     double dot(Vector rhs);
     double magnitude();
-    
     Vector normalize();
+    
+    Vector operator+(Vector rhs);
+    Vector operator-(Vector rhs);
+    Vector operator*(double rhs);
 };
 
 #endif /* Vector_hpp */

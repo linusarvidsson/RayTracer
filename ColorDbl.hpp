@@ -21,6 +21,7 @@ public:
     ColorDbl(double r_, double g_, double b_);
     
     ColorDbl operator*(double rhs);
+    ColorDbl operator+(ColorDbl rhs);
 };
 
 #endif /* ColorDbl_hpp */

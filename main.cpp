@@ -1,11 +1,10 @@
-//#include "SDL.h"
-#include <SDL2/SDL.h>
+// A special thanks to our dear friend Izan Beltrán
+#include "EasyBMP.hpp"
 
 #include <iostream>
 #include <vector>
 #include <memory>
 
-//#include "Triangle.hpp"
 #include "Object.hpp"
 #include "Tetrahedron.hpp"
 #include "Sphere.hpp"
@@ -15,23 +14,14 @@ using namespace std;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 800;
 
-void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int lastIntersection, int depth);
+
+void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth);
+bool trace(Ray &ray, vector<unique_ptr<Object>> &objects);
+ColorDbl monteCarlo(Vertex point, Vector normal, vector<unique_ptr<Object>> &objects, int depth, int max_iterations);
 
 int main() {
-    
-    //------------- Setup SDL window ---------------//
-    
-    SDL_Window * window = nullptr;
-    SDL_Renderer * renderer = nullptr;
-    
-    SDL_Init(SDL_INIT_VIDEO);
-    
-    SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer);
-    
+
     //------------- Setup the objects in the scene ---------------//
-    
-    // Temporary vector containing the direction for the light in the scene
-    Vector light = Vector(-1, -0.2, 1).normalize();
     
     // Array of vertices that builds up the room
     Vertex vertices[] = {
@@ -97,184 +87,230 @@ int main() {
     vector<unique_ptr<Object>> objects;
 
     // Add spheres to the vector
-    objects.push_back( make_unique<Sphere>(Sphere(Vertex(9, 4, -1, 1), 2, colors[0], REFLECTIVE)) );
+    objects.push_back( make_unique<Sphere>(Sphere(Vertex(5, 4, -1, 1), 1, colors[0], DIFFUSE)) );
     
     // Add tetrahedra to the vector
-    //objects.push_back( make_unique<Tetrahedron>( Tetrahedron(Vertex(6,-3,-1,1), Vertex(5,-2,-1,1), Vertex(6.4,-1.6,-1,1), Vertex(5.6,-2,0.2,1), colors[2], REFLECTIVE)) );
-    objects.push_back( make_unique<Tetrahedron>( Tetrahedron(Vertex(5,-2.5,-0.5,1), Vertex(3,-2,0,1), Vertex(5,0,0,1), Vertex(5,-2,2,1), colors[2], REFLECTIVE)) );
+    objects.push_back( make_unique<Tetrahedron>( Tetrahedron(Vertex(5,-2.5,-0.2,1), Vertex(3,-2,0,1), Vertex(5,0,0,1), Vertex(5,-2,2,1), colors[2], DIFFUSE)) );
     
     // Add all triangles to the vector
     for (int i = 0; i < N_TRIANGLES; i++){
         objects.push_back( make_unique<Triangle>( Triangle(vertices[t_data[4*i]], vertices[t_data[4*i+1]], vertices[t_data[4*i+2]], colors[t_data[4*i+3]], DIFFUSE)) );
     }
     
-
+    
     
     //------------- Render Scene ---------------//
 
-    // Temporary ray, will be updated with castRay
+    // Color Channels
+    int red[SCREEN_WIDTH][SCREEN_HEIGHT];
+    int green[SCREEN_WIDTH][SCREEN_HEIGHT];
+    int blue[SCREEN_WIDTH][SCREEN_HEIGHT];
+    
+    // Temporary ray, will be updated with castRay in render loop
     Ray cameraRay = Ray(Vertex(10, 10, 0, 1), Vertex(10 , 10, -1, 1));
+    
+    cout << "Rendering scene...\n";
+    
+    int steps = SCREEN_WIDTH / 20;
     
     // Loop through all the pixels of the window
     for (int i = 0; i < SCREEN_WIDTH; i++)
     {
+        if((i+1)%steps == 0) cout << ((i+1)*5) / steps << "%\n";
+        
         for (int j = 0; j < SCREEN_HEIGHT; j++)
         {
             // Set myRay to go from eye to the current pixel
             cameraRay = Ray(Vertex(-2, 0, 0, 1), Vertex(-1.6, -0.4 + i*0.001, 0.4 - j*0.001, 1));
             
             // Use castRay to find the point where the ray will intersect
-            castRay(cameraRay, objects, -1, 0);
+            castRay(cameraRay, objects, 0);
             
-            // Update the color of the pixel in the SDL window
-            SDL_SetRenderDrawColor(renderer, cameraRay.color.r, cameraRay.color.g, cameraRay.color.b, 255);
-            SDL_RenderDrawPoint(renderer, i, j);
+            // Save ray color
+            red[i][j] = (int)cameraRay.color.r;
+            green[i][j] = (int)cameraRay.color.g;
+            blue[i][j] = (int)cameraRay.color.b;
         }
+        
     }
-    
 
-    SDL_RenderPresent(renderer);
+    // Create Image
     
+    string imageName = "raytracer.bmp";
+    EasyBMP::RGBColor black(0, 0, 0);
+    EasyBMP::Image img(SCREEN_WIDTH, SCREEN_HEIGHT, imageName, black);
     
-    SDL_Event e;
-    bool quit = false;
-    while (!quit){
-        while (SDL_PollEvent(&e)){
-            if (e.type == SDL_QUIT){
-                quit = true;
-            }
-            if (e.type == SDL_KEYDOWN){
-                quit = true;
-            }
-            if (e.type == SDL_MOUSEBUTTONDOWN){
-                quit = true;
-            }
+    for (int i = 0; i < SCREEN_WIDTH; i++) {
+        for (int j = 0; j < SCREEN_HEIGHT; j++) {
+            EasyBMP::RGBColor color(red[i][j], green[i][j], blue[i][j]);
+            img.SetPixel(i, j, color);
         }
     }
     
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    img.Write();
+    
+    cout << "Image saved as " << imageName << "\n";
 }
 
-void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int lastIntersection, int depth){
+
+
+
+
+void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
     
-    for (int i = 0; i < objects.size(); i++){
+    if(depth > 1) return;
+    
+    if(trace(ray, objects)){
        
-        if (i != lastIntersection && objects[i]->rayIntersection(ray))
-        {
-            
-            switch ( objects[i]->material() ) {
-                    
-                case DIFFUSE:
-                {
-                    /*
-                    Vector toLight = Vertex(5, 0, 5, 1) - ray.intersection;
-                    double cosTheta = ray.normal.dot(toLight) / (ray.normal.magnitude() * toLight.magnitude());
-                    if (cosTheta < 0) cosTheta = 0;
-                    double radiosity = 0.1 + 0.9 * cosTheta;
-                    
-                    ray.color = objects[i]->color() * radiosity;
-                    
-                    */
-                    
-                    ray.color = objects[i]->color();
-                    
-                    return;
-                }
-                    
-                case REFLECTIVE:
-                {
-                    
-                    Vector incoming = ray.intersection - ray.start;
-                    ray.end = incoming - ray.normal * 2 * (incoming.dot(ray.normal));
-                    ray.start = ray.intersection;
-                    castRay(ray, objects, i, depth +1);
-                    
-                    return;
-                }
-                    
-                case TRANSPARENT:
-                {
-                    
-                    return;
-                }
-            }
+        switch ( objects[ray.objectIndex]->material() ) {
+                
+            case DIFFUSE:
+            {
+                Vector toLight = Vertex(5, 0, 4.9, 1) - ray.intersection;
 
-            /*
-            Ray *ptr = ray;
-            while (ptr->parent != nullptr) {
-                ptr->parent->color = ptr->parent->color + ptr->color;
-                ptr = ptr->parent;
+                double radiosity = 1.0;
+                double shadow = 1.0;
+                
+                double cosTheta = ray.objectNormal.dot(toLight.normalize());
+                if (cosTheta < 0) cosTheta = 0;
+                radiosity = 0.1 + 0.9 * cosTheta;
+                
+                
+                Vector shadowDirection = Vertex(5, 0, 4.9, 1) - ray.intersection;
+                shadowDirection = shadowDirection.normalize();
+                Ray shadowRay = Ray(ray.intersection + shadowDirection * 0.0001, ray.intersection + shadowDirection);
+                
+                if( trace(shadowRay, objects) ){
+                    Vector intersected = shadowRay.intersection - ray.intersection;
+                    if(intersected.magnitude() < toLight.magnitude()) shadow = 0.4;
+                }
+                
+                
+                ColorDbl direct = objects[ray.objectIndex]->color() * shadow * radiosity;
+                ColorDbl indirect = monteCarlo(ray.intersection, ray.objectNormal, objects, depth, 3);
+                
+                ray.color = direct * 0.7 + indirect * 0.3;
+                
+                return;
             }
-            return;
-             */
+               
+                
+            case REFLECTIVE:
+            {
+                Vector incoming = (ray.intersection - ray.start).normalize();
+                Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
+                
+                Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
+                castRay(reflected, objects, depth +1);
+                
+                ray.color = reflected.color;
+                
+                return;
+            }
+                
+                
+            case TRANSPARENT:
+            {
+                Vector incoming = (ray.intersection - ray.start).normalize();
+                
+                double etai = 1, etat = 1.52;
+                Vector n = ray.objectNormal.normalize();
+                
+                double cosi = incoming.dot(n);
+                if (cosi < 0) {
+                    cosi = -cosi;
+                }
+                else {
+                    swap(etai, etat);
+                    n = n * -1.0;
+                }
+                
+                double eta = etai / etat;
+                double k = 1 - eta * eta * (1 - cosi * cosi);
+                
+                Vector refractionDirection = incoming * eta  + n * (eta * cosi - sqrtf(k));
+
+                Ray refracted = Ray(ray.intersection + refractionDirection * 0.001, ray.intersection + refractionDirection);
+                castRay(refracted, objects, depth +1);
+                
+                ray.color = ray.color + refracted.color * 0.5;
+                
+                return;
+            }
         }
-
+            
     }
 }
 
 
-//            if (tetrahedra[0].rayIntersection(myRay)) {
-//                Triangle intersection = tetrahedra[0].intersectionPoint(myRay);
-//                Vector normal = intersection.normal;
-//                Vector toLight = vertices[13] - intersection.intersectionPoint(myRay);
-//                double cosTheta = normal.dot(toLight) / (normal.magnitude() * toLight.magnitude());
-//                if (cosTheta < 0) cosTheta = 0;
-//                double radiosity = 0.3 + 0.7 * cosTheta;
-//
-//                SDL_SetRenderDrawColor(renderer, radiosity * tetrahedra[0].color.r, radiosity * tetrahedra[0].color.g, radiosity * tetrahedra[0].color.b, 255);
-//                SDL_RenderDrawPoint(renderer, i, j);
-//            }
-//
-//            if (spheres[0].rayIntersection(myRay)) {
-//                Vertex intersection = spheres[0].intersectionPoint(myRay);
-//                Vector normal = intersection - spheres[0].center;
-//                Vector toLight = vertices[13] - intersection;
-//                double cosTheta = normal.dot(toLight) / (normal.magnitude() * toLight.magnitude());
-//                if (cosTheta < 0) cosTheta = 0;
-//                double radiosity = 0.3 + 0.7 * cosTheta;
-//
-//                SDL_SetRenderDrawColor(renderer, radiosity * spheres[0].color.r, radiosity * spheres[0].color.g, radiosity * spheres[0].color.b, 255);
-//                SDL_RenderDrawPoint(renderer, i, j);
-
-//    Vertex intersection = spheres[0].intersectionPoint(myRay);
-//    Vector normal = intersection - spheres[0].center;
-//    normal = normal.normalize();
-//    Vector L = (myRay.start - myRay.end).normalize();
-//    Vector reflected = ((normal * normal.dot(L)) - L) * 2;
-//    Vertex rayDirection = intersection + reflected;
-//    Ray newRay = Ray(intersection, rayDirection);
-//
-//    for (int x = 0; x < N_TRIANGLES; x++)
-//    {
-//        if (triangles[x].rayIntersection(newRay))
-//        {
-//            double r = 0.2 * spheres[0].color.r + 0.8 * triangles[x].color.r;
-//            double g = 0.2 * spheres[0].color.g + 0.8 * triangles[x].color.g;
-//            double b = 0.2 * spheres[0].color.b + 0.8 * triangles[x].color.b;
-//            SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-//            SDL_RenderDrawPoint(renderer, i, j);
-//            break;
-//        }
-//    }
 
 
 
-/*
-// The cosine value of the angle between the ray normal and the light source
-double cosTheta = myRay.normal.dot(light);
+bool trace(Ray &ray, vector<unique_ptr<Object>> &objects){
+    // If no object is intersected, intersected will stay false
+    bool intersected = false;
+    
+    // Check if ray intersects with any objects. Store the object closest to starting point of ray
+    for (int i = 0; i < objects.size(); i++){
+        if ( objects[i]->rayIntersection(ray) ) {
+            intersected = true;
+            ray.objectIndex = i;
+        }
+    }
+    
+    return intersected;
+}
 
-// If the cosine value is negative the light source is not visable from the intersection point and should be set to 0
-if (cosTheta < 0) cosTheta = 0;
 
-// Radiosity of the point. Ambient factor + the light coming from the light source
-double radiosity = 0.3 + 0.7 * cosTheta;
 
-// Cast a shadow ray from the intersection point
-Ray shadowRay = Ray(myRay.intersection, vertices[13]);
-//castRay(shadowRay, triangles, 0, tetrahedra, 1, spheres, 1);
-castRay(shadowRay, objects2, -1, 0);
 
-// This is some proper bullshit right here
-if (shadowRay.color.r > 0) radiosity = 0.3;
-*/
+
+ColorDbl monteCarlo(Vertex point, Vector normal, vector<unique_ptr<Object>> &objects, int depth, int max_iterations) {
+    
+    // Setup local Cartesian coordinate system with vectors normal, a & b
+    Vector a, b;
+    
+    if( abs(normal.x) < abs(normal.y) ) {
+        a = Vector(normal.z, 0, -normal.x).normalize();
+    }
+    else {
+        a = Vector(0, -normal.z, -normal.y).normalize();
+    }
+    
+    b = normal.cross(a);
+    
+    
+    // Variable storing the resulting color of the monte carlo sampling
+    ColorDbl result;
+    
+    for (int i = 0; i < max_iterations; i++) {
+        // Generate random angles in the hemisphere
+        double theta = drand48() * 0.5 * M_PI;
+        double phi = drand48() * 2 * M_PI;
+        
+        // Vector pointing in a random direction in the hemisphere
+        Vector sphereDirection (
+                                sin(theta) * cos(phi),
+                                cos(theta),
+                                sin(theta) * sin(phi)
+                                );
+        
+        // Sphere direction in world coordinates
+        Vector direction(
+            sphereDirection.x * b.x + sphereDirection.y * normal.x + sphereDirection.z * a.x,
+            sphereDirection.x * b.y + sphereDirection.y * normal.y + sphereDirection.z * a.y,
+            sphereDirection.x * b.z + sphereDirection.y * normal.z + sphereDirection.z * a.z
+        );
+        
+        
+        // Cast a sample ray and get intersected object's color
+        Ray sample = Ray(point + direction * 0.001, point + direction);
+        castRay(sample, objects, depth+1);
+        result = result + sample.color;
+    }
+    
+    // Divide the sum of colors with number of samples to get the average
+    result = result * (1.0 / max_iterations);
+    
+    return result;
+}

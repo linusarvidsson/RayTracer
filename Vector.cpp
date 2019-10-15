@@ -1,10 +1,3 @@
-//
-//  Vector.cpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-13.
-//
-
 #include "Vector.hpp"
 
 Vector::Vector()
@@ -12,6 +5,11 @@ Vector::Vector()
     
 Vector::Vector(double x_, double y_, double z_)
     : x(x_), y(y_), z(z_) {}
+
+Vector Vector::operator+(Vector rhs)
+{
+    return Vector (x + rhs.x, y + rhs.y, z + rhs.z);
+}
     
 Vector Vector::operator-(Vector rhs)
 {

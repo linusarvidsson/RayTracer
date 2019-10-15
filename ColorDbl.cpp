@@ -28,3 +28,8 @@ ColorDbl ColorDbl::operator*(double rhs)
 {
     return ColorDbl(r * rhs, g * rhs, b * rhs);
 }
+
+ColorDbl ColorDbl::operator+(ColorDbl rhs)
+{
+    return ColorDbl(r + rhs.r, g + rhs.g, b + rhs.b);
+}

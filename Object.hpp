@@ -1,11 +1,3 @@
-//
-//  Object.hpp
-//  RayTracer
-//
-//  Created by Linus Arvidsson on 2019-10-07.
-//  Copyright © 2019 Linus Arvidsson. All rights reserved.
-//
-
 #ifndef Object_hpp
 #define Object_hpp
 

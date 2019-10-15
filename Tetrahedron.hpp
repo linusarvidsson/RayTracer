@@ -1,10 +1,3 @@
-//
-//  Tetrahedron.hpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-17.
-//
-
 #ifndef Tetrahedron_hpp
 #define Tetrahedron_hpp
 

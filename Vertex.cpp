@@ -1,10 +1,3 @@
-//
-//  Vertex.cpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-13.
-//
-
 #include "Vertex.hpp"
 
 Vertex::Vertex()

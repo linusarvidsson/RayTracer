@@ -1,10 +1,3 @@
-//
-//  Ray.hpp
-//  RayTracer
-//
-//  Created by Ludvig Kratzert on 2019-09-13.
-//
-
 #ifndef Ray_hpp
 #define Ray_hpp
 
@@ -18,10 +11,13 @@ class Ray {
 public:
     // Start and end point of ray
     Vertex start, end;
+    
     // The point where the ray intersects an object
     Vertex intersection;
     // Normal of intersected object
-    Vector normal;
+    Vector objectNormal;
+    // Color of intersected object
+    int objectIndex;
 
     // Color information coming from the ray
     ColorDbl color;
