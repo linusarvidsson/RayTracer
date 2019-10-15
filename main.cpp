@@ -166,28 +166,26 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
                 
             case DIFFUSE:
             {
-                Vector toLight = Vertex(5, 0, 4.9, 1) - ray.intersection;
-
                 double radiosity = 1.0;
                 double shadow = 1.0;
                 
-                double cosTheta = ray.objectNormal.dot(toLight.normalize());
+                Vector toLight = Vertex(5, 0, 4.9, 1) - ray.intersection;
+                double lightDistance = toLight.magnitude();
+                toLight = toLight.normalize();
+                
+                double cosTheta = ray.objectNormal.dot(toLight);
                 if (cosTheta < 0) cosTheta = 0;
                 radiosity = 0.1 + 0.9 * cosTheta;
                 
-                
-                Vector shadowDirection = Vertex(5, 0, 4.9, 1) - ray.intersection;
-                shadowDirection = shadowDirection.normalize();
-                Ray shadowRay = Ray(ray.intersection + shadowDirection * 0.0001, ray.intersection + shadowDirection);
-                
+                Ray shadowRay = Ray(ray.intersection + toLight * 0.0001, ray.intersection + toLight);
                 if( trace(shadowRay, objects) ){
                     Vector intersected = shadowRay.intersection - ray.intersection;
-                    if(intersected.magnitude() < toLight.magnitude()) shadow = 0.4;
+                    if(intersected.magnitude() < lightDistance) shadow = 0.4;
                 }
                 
                 
                 ColorDbl direct = objects[ray.objectIndex]->color() * shadow * radiosity;
-                ColorDbl indirect = monteCarlo(ray.intersection, ray.objectNormal, objects, depth, 3);
+                ColorDbl indirect = monteCarlo(ray.intersection, ray.objectNormal, objects, depth, 10);
                 
                 ray.color = direct * 0.7 + indirect * 0.3;
                 
