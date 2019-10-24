@@ -111,14 +111,14 @@ int main() {
     
     cout << "Rendering scene...\n";
     
-    int steps = SCREEN_WIDTH / 20;
+    int steps = (SCREEN_WIDTH * 2) / 20;
     
     // Loop through all the pixels of the window
-    for (int i = 0; i < SCREEN_WIDTH; i++)
+    for (int i = 0; i < (SCREEN_WIDTH); i++)
     {
         if((i+1)%steps == 0) cout << ((i+1)*5) / steps << "%\n";
         
-        for (int j = 0; j < SCREEN_HEIGHT; j++)
+        for (int j = 0; j < (SCREEN_HEIGHT); j++)
         {
             // Set myRay to go from eye to the current pixel
             cameraRay = Ray(Vertex(-2, 0, 0, 1), Vertex(-1.6, -0.4 + i*0.001, 0.4 - j*0.001, 1));
@@ -142,6 +142,7 @@ int main() {
     
     for (int i = 0; i < SCREEN_WIDTH; i++) {
         for (int j = 0; j < SCREEN_HEIGHT; j++) {
+
             EasyBMP::RGBColor color(red[i][j], green[i][j], blue[i][j]);
             img.SetPixel(i, j, color);
         }
@@ -185,7 +186,7 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
                 
                 
                 ColorDbl direct = objects[ray.objectIndex]->color() * shadow * radiosity;
-                ColorDbl indirect = monteCarlo(ray.intersection, ray.objectNormal, objects, depth, 10);
+                ColorDbl indirect = monteCarlo(ray.intersection, ray.objectNormal, objects, depth, 5);
                 
                 ray.color = direct * 0.7 + indirect * 0.3;
                 
