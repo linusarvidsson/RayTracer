@@ -9,6 +9,8 @@ public:
     
     Tetrahedron(Vertex a, Vertex b, Vertex c, Vertex d, ColorDbl color, Material material);
     bool rayIntersection(Ray &ray);
+    Vertex point(double u, double v) {return Vertex();}
+    Vector getNormal() {return Vector();}
     Triangle intersectedTriangle(Ray arg);
     Material material();
     ColorDbl color();

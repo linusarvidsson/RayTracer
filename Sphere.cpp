@@ -5,7 +5,7 @@ Sphere::Sphere()
     center = Vertex(0, 0, 0, 1);
     radius = 1;
     
-    objectMaterial = DIFFUSE;
+    objectMaterial = LAMBERTIAN;
 }
 
 Sphere::Sphere(Vertex center_, double radius_, ColorDbl color_, Material material_)

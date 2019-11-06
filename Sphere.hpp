@@ -17,6 +17,8 @@ public:
     Sphere();
     Sphere(Vertex center_, double radius_, ColorDbl color_, Material material_);
     bool rayIntersection(Ray &arg);
+    Vertex point(double u, double v) {return Vertex();}
+    Vector getNormal() {return Vector();}
     Material material();
     ColorDbl color();
     

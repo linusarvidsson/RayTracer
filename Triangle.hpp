@@ -20,7 +20,8 @@ public:
     Triangle();
     Triangle(Vertex a_, Vertex b_, Vertex c_, ColorDbl color_, Material material_);
     bool rayIntersection(Ray &arg);
-    
+    Vertex point(double u, double v);
+    Vector getNormal();
     Material material();
     ColorDbl color();
     

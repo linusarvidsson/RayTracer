@@ -6,7 +6,7 @@ Triangle::Triangle()
     a = b = c = Vertex();
     normal = Vector();
     objectColor = ColorDbl();
-    objectMaterial = DIFFUSE;
+    objectMaterial = LAMBERTIAN;
 }
 
 Triangle::Triangle(Vertex a_, Vertex b_, Vertex c_, ColorDbl color_, Material material_)
@@ -46,6 +46,18 @@ bool Triangle::rayIntersection(Ray &ray)
     return false;
     
 };
+
+Vertex Triangle::point(double u, double v)
+{
+    Vector E1 = b - a;
+    Vector E2 = c - a;
+    
+    return a + E1 * u + E2 * v;
+}
+
+Vector Triangle::getNormal() {
+    return normal;
+}
 
 Material Triangle::material(){
     return objectMaterial;
