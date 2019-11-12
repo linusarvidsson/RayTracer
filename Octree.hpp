@@ -66,11 +66,10 @@ struct Node {
         
         photons.clear();
         n = 0;
-        /*
+        
         for (int i = 0; i < 8; i++) {
             if (children[i]->n > N0) children[i]->split(N0);
-        }*/
-        if (children[0]->n > N0) children[0]->split(N0);
+        }
     }
 };
 

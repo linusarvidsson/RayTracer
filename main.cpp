@@ -116,14 +116,12 @@ int main() {
     for (int i = 0; i < M_PHOTONS; i++) {
         Vector pos = Vector(drand48() * 16 - 3, drand48() * 12 - 6, drand48() * 10 - 5);
         Vector dir = Vector();
-        photons.push_back(make_shared<Photon>(Photon(pos, dir, 1)));
+        photons.push_back(make_shared<Photon>(Photon(dir, pos, 1)));
     }
     
     Octree photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
     
-    Node* ptr = photonTree.root;
-    while (ptr->n == 0) ptr = ptr->children[0];
-    cout << ptr->xmin << " " << ptr->xmax << endl;
+
     
     
     //------------- Render Scene ---------------//
