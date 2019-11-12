@@ -6,6 +6,7 @@
 #include <memory>
 #include <thread>
 
+#include "Octree.hpp"
 #include "Object.hpp"
 #include "Tetrahedron.hpp"
 #include "Sphere.hpp"
@@ -15,6 +16,7 @@ using namespace std;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 800;
 const int L0 = 6000;
+const int M_PHOTONS = 1000;
 
 
 void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth);
@@ -106,6 +108,22 @@ int main() {
     
     // Create the light source
     objects.push_back(make_unique<Triangle>( Triangle(Vertex(4.5, 1, 4.99, 1), Vertex(4.5, -1, 4.99, 1), Vertex(6.22, 0, 4.99, 1), ColorDbl(255,255,255), EMISSIVE)));
+    
+    //------------- Create Octree --------------//
+    
+    vector<shared_ptr<Photon>> photons;
+    
+    for (int i = 0; i < M_PHOTONS; i++) {
+        Vector pos = Vector(drand48() * 16 - 3, drand48() * 12 - 6, drand48() * 10 - 5);
+        Vector dir = Vector();
+        photons.push_back(make_shared<Photon>(Photon(pos, dir, 1)));
+    }
+    
+    Octree photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
+    
+    Node* ptr = photonTree.root;
+    while (ptr->n == 0) ptr = ptr->children[0];
+    cout << ptr->xmin << " " << ptr->xmax << endl;
     
     
     //------------- Render Scene ---------------//
@@ -359,7 +377,15 @@ bool trace(Ray &ray, vector<unique_ptr<Object>> &objects){
     return intersected;
 }
 
-
+Vertex randomPointOnLight(vector<unique_ptr<Object>> &objects) {
+    double u, v;
+    do {
+        u = drand48();
+        v = drand48();
+    } while (u + v <= 1);
+    
+    return objects.back()->point(u, v);
+}
 
 ColorDbl directLightLambertian(Vertex point, Vector normal, vector<unique_ptr<Object>> &objects) {
 
@@ -368,13 +394,14 @@ ColorDbl directLightLambertian(Vertex point, Vector normal, vector<unique_ptr<Ob
     ColorDbl result = ColorDbl(0,0,0);
     
     for (int i = 0; i < M; i++) {
-        double u, v;
+        /*double u, v;
         do {
             u = drand48();
             v = drand48();
         } while (u + v <= 1);
         
-        Vertex lightPoint = objects.back()->point(u, v);
+        Vertex lightPoint = objects.back()->point(u, v); */
+        Vertex lightPoint = randomPointOnLight(objects);
         
         
         Vector toLight = lightPoint - point;
