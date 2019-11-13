@@ -6,3 +6,9 @@
 //
 
 #include "Photon.hpp"
+
+Photon::Photon() {
+    position = Vertex();
+    direction = Vector();
+    flux = ColorDbl();
+}

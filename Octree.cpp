@@ -7,6 +7,11 @@
 
 #include "Octree.hpp"
 
+Octree::Octree() {
+    N0 = 0;
+    root = new Node();
+}
+
 Octree::Octree(int n0, vector<shared_ptr<Photon>> photons, double a, double b, double c, double d, double e, double f)
 {
     N0 = n0;

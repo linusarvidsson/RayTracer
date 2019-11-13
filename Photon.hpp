@@ -9,6 +9,7 @@
 #define Photon_hpp
 
 #include <stdio.h>
+#include "ColorDbl.hpp"
 #include "Vector.hpp"
 #include "Vertex.hpp"
 
@@ -17,7 +18,7 @@ public:
     //Pointing towards position
     Vector direction;
     Vertex position;
-    double flux = 0;
+    ColorDbl flux;
     bool isShadow = false;
     
     Photon();

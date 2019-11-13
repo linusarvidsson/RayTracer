@@ -19,8 +19,24 @@ struct Node {
     double xmin, xmax, ymin, ymax, zmin, zmax;
     int n = 0;
     Node* parent;
-    Node* children[8];
+    Node* children[8] = {nullptr};
     vector<shared_ptr<Photon>> photons;
+    
+    Node* findChild(double x, double y, double z) {
+        double xmid = (xmin + xmax) / 2.0;
+        double ymid = (ymin + ymax) / 2.0;
+        double zmid = (zmin + zmax) / 2.0;
+        
+        if (children[0] != nullptr) {
+            int index = 0;
+            if (x > xmid) index += 4;
+            if (y > ymid) index += 2;
+            if (z > zmid) index += 1;
+            return children[index]->findChild(x,y,z);
+        }
+        
+        return this;
+    }
     
     void setDimensions(double a, double b, double c, double d, double e, double f) {
         xmin = a; xmax = b;
@@ -78,6 +94,7 @@ public:
     int N0 = 1000;
     Node* root;
     
+    Octree();
     Octree(int n0, vector<shared_ptr<Photon>> photons, double a, double b, double c, double d, double e, double f);
     
 private:

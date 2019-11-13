@@ -9,7 +9,6 @@ public:
     double x, y, z;
     
     Vector();
-    Vector(Vertex v);
     Vector(double x_, double y_, double z_);
     Vector cross(Vector rhs);
     double dot(Vector rhs);

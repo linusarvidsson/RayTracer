@@ -18,11 +18,12 @@ const int SCREEN_HEIGHT = 800;
 const int L0 = 6000;
 const int M_PHOTONS = 1000;
 
+Octree photonTree;
 
 void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth);
 bool trace(Ray &ray, vector<unique_ptr<Object>> &objects);
 bool traceExcept(Ray &ray, vector<unique_ptr<Object>> &objects, int exception);
-void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, vector<shared_ptr<Photon>> &photons)
+void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, vector<shared_ptr<Photon>> &photons);
 ColorDbl directLightLambertian(Vertex point, Vector normal, vector<unique_ptr<Object>> &objects);
 ColorDbl directLightOrenNayar(double sigma, Vertex point, Vector normal, Vector out, vector<unique_ptr<Object>> &objects);
 Ray refractionDirection(Vertex point, Vector incoming, Vector normal, double eta);
@@ -99,7 +100,7 @@ int main() {
     vector<unique_ptr<Object>> objects;
 
     // Add spheres to the vector
-    objects.push_back( make_unique<Sphere>(Sphere(Vertex(8, 0, 3, 1), 1, colors[0], OREN_NAYAR)) ); //5, 4, -1
+    objects.push_back( make_unique<Sphere>(Sphere(Vertex(3.8, -1, 0, 1), 1.2, colors[0], TRANSPARENT)) ); //5, 4, -1
     
     // Add tetrahedra to the vector
     objects.push_back( make_unique<Tetrahedron>( Tetrahedron(Vertex(5,-2.5,-0.2,1), Vertex(3,-2,0,1), Vertex(5,0,0,1), Vertex(5,-2,2,1), colors[2], LAMBERTIAN)) );
@@ -117,14 +118,15 @@ int main() {
     vector<shared_ptr<Photon>> photons;
     
     for (int i = 0; i < M_PHOTONS; i++) {
-        /*
-        Vertex vert_pos = randomPointOnLight(objects);
-        Vector dir = randomDirection(Vector(pos.x, pos.y, pos.z), Vector(0.0, 0.0, -1.0));
-        photons.push_back(make_shared<Photon>(Photon(dir, pos, 1)));
-         */
+        Photon p;
+        p.flux = ColorDbl(255,255,255);
+        p.position = randomPointOnLight(objects);
+        Ray direction = randomDirection(p.position, Vector(0,0,-1));
+        p.direction = direction.end - direction.start;
+        castPhoton(p, direction, objects, photons);
     }
     
-    Octree photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
+    photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
     
 
     
@@ -243,10 +245,19 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
             {
                 ColorDbl direct = objects[ray.objectIndex]->color() * directLightLambertian(ray.intersection, ray.objectNormal, objects) * (1.0/255.0);
                 
+                //Calculate contribution from photon map
+                ColorDbl caustic;
+                Node* node = photonTree.root->findChild(ray.intersection.x, ray.intersection.y, ray.intersection.z);
+                for (int i = 0; i < node->n; i++) {
+                    if (!node->photons[i]->isShadow) {
+                        caustic = caustic + ColorDbl(1,1,1);
+                    }
+                }
+                
                 if (drand48() > 0.75) {
                     //Terminate the ray
                     //ray.color = direct * 0.7;
-                    ray.color = direct;
+                    ray.color = direct + caustic;
                     return;
                 } else {
                     Ray sample = randomDirection(ray.intersection, ray.objectNormal);
@@ -254,7 +265,7 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
                     ColorDbl indirect = sample.color * objects[ray.objectIndex]->color() * (1.0/255.0);
                     
                     //ray.color = direct * 0.7 + indirect * 0.3;
-                    ray.color = direct + indirect;
+                    ray.color = direct + indirect + caustic;
                     return;
                 }
             }
@@ -301,27 +312,6 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
             case TRANSPARENT:
             {
                 Vector incoming = (ray.intersection - ray.start).normalize();
-                /*
-                double etai = 1, etat = 1.52;
-                Vector n = ray.objectNormal.normalize();
-                
-                double cosi = incoming.dot(n);
-                if (cosi < 0) {
-                    cosi = -cosi;
-                }
-                else {
-                    swap(etai, etat);
-                    n = n * -1.0;
-                }
-                
-                double eta = etai / etat;
-                double k = 1 - eta * eta * (1 - cosi * cosi);
-                
-                Vector refractionDirection = incoming * eta  + n * (eta * cosi - sqrtf(k));
-
-                Ray refracted = Ray(ray.intersection + refractionDirection * 0.001, ray.intersection + refractionDirection);
-                castRay(refracted, objects, depth +1);
-                */
                 
                 // Calculate refracted ray
                 Ray refracted = ray;
@@ -336,17 +326,22 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
                     R = reflectionCoefficient(1, eta, cosi);
                 }
                 else {
-                    refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, eta);
+                    refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal * -1, eta);
                     R = reflectionCoefficient(eta, 1, cosi);
                 }
                 castRay(refracted, objects, depth +1);
                 
                 // Calculate reflected ray
-                Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
-                
-                Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
-                castRay(reflected, objects, depth +1);
-                
+                Ray reflected = ray;
+                if (cosi > 0) {
+                    Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
+                    
+                    Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
+                    castRay(reflected, objects, depth +1);
+                } else {
+                    reflected.color = ColorDbl(0,0,0);
+                    R = 0;
+                }
                 
                 ray.color = refracted.color * (1 - R) + reflected.color * R;
                 
@@ -578,9 +573,8 @@ void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, v
                    } else {
                        // Cast new photon
                        Photon p;
-                       p.flux = 1.2 * photon.flux;
-                       
-                       // CONTINUE HERE!!! :D
+                       p.flux = photon.flux * 1.2;
+                       p.flux = p.flux * objects[ray.objectIndex]->color();
                        
                        Ray random = randomDirection(ray.intersection, ray.objectNormal);
                        castPhoton(p, random, objects, photons);
@@ -623,36 +617,40 @@ void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, v
                case TRANSPARENT:
                {
                    Vector incoming = (ray.intersection - ray.start).normalize();
-                   
-                   // Calculate refracted ray
+                 
                    Ray refracted = ray;
-                   
+                 
                    double eta = 1.52;
                    double R;
-                   
+                 
                    double cosi = (incoming * -1).dot(ray.objectNormal);
-                   
+                 
                    if (cosi > 0) {
-                       refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, 1.0/eta);
+                    refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, 1.0/eta);
                        R = reflectionCoefficient(1, eta, cosi);
                    }
                    else {
-                       refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, eta);
+                       refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal * -1, eta);
                        R = reflectionCoefficient(eta, 1, cosi);
                    }
                    
-                   // Cast refracted photon
-                   Photon refr;
-                   refr.flux = R * photon.flux;
-                   castPhoton(refr, refracted, objects, photons);
-                   
-                   // Calculate reflected ray
-                   Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
-                   Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
-                   
-                   Photon refl;
-                   refr.flux = (1 - R) * photon.flux;
-                   castPhoton(refl, reflected, objects, photons);
+                   if (cosi > 0) {
+                       Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
+                 
+                       Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
+                       
+                       Photon refl;
+                       refl.flux = photon.flux * R;
+                       castPhoton(refl, reflected, objects, photons);
+                       
+                       Photon refr;
+                       refr.flux = photon.flux * (1 - R);
+                       castPhoton(refr, refracted, objects, photons);
+                   } else {
+                       Photon refr;
+                       refr.flux = photon.flux;
+                       castPhoton(refr, refracted, objects, photons);
+                   }
                    
                    return;
                }

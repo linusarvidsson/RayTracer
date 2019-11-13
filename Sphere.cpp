@@ -27,7 +27,10 @@ bool Sphere::rayIntersection(Ray &ray)
     double discriminant = (b*b/4) - a*c;
     if (discriminant > 0)
     {
-        double d = - (b/2) - sqrt(discriminant);
+        double d0 = - (b/2) - sqrt(discriminant);
+        double d1 = - (b/2) + sqrt(discriminant);
+        
+        double d = d0 > 0 ? d0 : d1;
         
         if (d > ray.t) return false;
         
