@@ -21,12 +21,15 @@ const int M_PHOTONS = 1000;
 
 void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth);
 bool trace(Ray &ray, vector<unique_ptr<Object>> &objects);
+bool traceExcept(Ray &ray, vector<unique_ptr<Object>> &objects, int exception);
+void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, vector<shared_ptr<Photon>> &photons)
 ColorDbl directLightLambertian(Vertex point, Vector normal, vector<unique_ptr<Object>> &objects);
 ColorDbl directLightOrenNayar(double sigma, Vertex point, Vector normal, Vector out, vector<unique_ptr<Object>> &objects);
 Ray refractionDirection(Vertex point, Vector incoming, Vector normal, double eta);
 double reflectionCoefficient(double n1, double n2, double cosi);
 Ray randomDirection(Vertex point, Vector normal);
 float orenNayarBRDF(Vector in, Vector out, Vector normal, double sigma);
+Vertex randomPointOnLight(vector<unique_ptr<Object>> &objects);
 
 int main() {
 
@@ -114,9 +117,11 @@ int main() {
     vector<shared_ptr<Photon>> photons;
     
     for (int i = 0; i < M_PHOTONS; i++) {
-        Vector pos = Vector(drand48() * 16 - 3, drand48() * 12 - 6, drand48() * 10 - 5);
-        Vector dir = Vector();
+        /*
+        Vertex vert_pos = randomPointOnLight(objects);
+        Vector dir = randomDirection(Vector(pos.x, pos.y, pos.z), Vector(0.0, 0.0, -1.0));
         photons.push_back(make_shared<Photon>(Photon(dir, pos, 1)));
+         */
     }
     
     Octree photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
@@ -375,6 +380,22 @@ bool trace(Ray &ray, vector<unique_ptr<Object>> &objects){
     return intersected;
 }
 
+bool traceExcept(Ray &ray, vector<unique_ptr<Object>> &objects, int exception){
+    // If no object is intersected, intersected will stay false
+    bool intersected = false;
+    ray.t = 100000;
+    
+    // Check if ray intersects with any objects. Store the object closest to starting point of ray
+    for (int i = 0; i < objects.size(); i++){
+        if (i != exception && objects[i]->rayIntersection(ray)) {
+            intersected = true;
+            ray.objectIndex = i;
+        }
+    }
+    
+    return intersected;
+}
+
 Vertex randomPointOnLight(vector<unique_ptr<Object>> &objects) {
     double u, v;
     do {
@@ -536,4 +557,111 @@ float orenNayarBRDF(Vector in, Vector out, Vector normal, double sigma)
     double theta_diff = acos(in.dot(out));
     
     return (1 / M_PI) * (A + B * max(0.0, cos(theta_diff)) * sin(phi_in) * sin(phi_out));
+}
+
+void castPhoton(Photon &photon, Ray &ray, vector<unique_ptr<Object>> &objects, vector<shared_ptr<Photon>> &photons){
+       if(trace(ray, objects)){
+          
+           switch ( objects[ray.objectIndex]->material() ) {
+                   
+               case OREN_NAYAR:
+               case LAMBERTIAN:
+               {
+                   
+                   if (drand48() > 0.75) {
+                       // Terminate, store photon
+                       shared_ptr<Photon> p = make_shared<Photon>();
+                       p->position = ray.intersection;
+                       p->direction = ray.end - ray.start;
+                       p->flux = photon.flux;
+                       photons.push_back(p);
+                   } else {
+                       // Cast new photon
+                       Photon p;
+                       p.flux = 1.2 * photon.flux;
+                       
+                       // CONTINUE HERE!!! :D
+                       
+                       Ray random = randomDirection(ray.intersection, ray.objectNormal);
+                       castPhoton(p, random, objects, photons);
+                   }
+                   
+                   // Cast shadow photon
+                   if (traceExcept(ray, objects, ray.objectIndex)) {
+                       shared_ptr<Photon> s = make_shared<Photon>();
+                       s->isShadow = true;
+                       s->position = ray.intersection;
+                       photons.push_back(s);
+                   }
+                   
+                   return;
+               }
+            
+               case REFLECTIVE:
+               {
+                   Vector incoming = (ray.intersection - ray.start).normalize();
+                   Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
+                   
+                   Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
+                   
+                   Photon r;
+                   r.flux = photon.flux;
+                   castPhoton(r, reflected, objects, photons);
+                   
+                   // Trace the shadow photon
+                   traceExcept(ray, objects, ray.objectIndex);
+                   shared_ptr<Photon> s = make_shared<Photon>();
+                   s->isShadow = true;
+                   s->position = ray.intersection;
+                   photons.push_back(s);
+                   //s.direction = ray.start - ray.end;
+                   
+                   return;
+               }
+                   
+                   
+               case TRANSPARENT:
+               {
+                   Vector incoming = (ray.intersection - ray.start).normalize();
+                   
+                   // Calculate refracted ray
+                   Ray refracted = ray;
+                   
+                   double eta = 1.52;
+                   double R;
+                   
+                   double cosi = (incoming * -1).dot(ray.objectNormal);
+                   
+                   if (cosi > 0) {
+                       refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, 1.0/eta);
+                       R = reflectionCoefficient(1, eta, cosi);
+                   }
+                   else {
+                       refracted = refractionDirection(ray.intersection, incoming, ray.objectNormal, eta);
+                       R = reflectionCoefficient(eta, 1, cosi);
+                   }
+                   
+                   // Cast refracted photon
+                   Photon refr;
+                   refr.flux = R * photon.flux;
+                   castPhoton(refr, refracted, objects, photons);
+                   
+                   // Calculate reflected ray
+                   Vector reflectionDirection = incoming - ray.objectNormal * 2 * (incoming.dot(ray.objectNormal));
+                   Ray reflected = Ray(ray.intersection + reflectionDirection * 0.001, ray.intersection + reflectionDirection);
+                   
+                   Photon refl;
+                   refr.flux = (1 - R) * photon.flux;
+                   castPhoton(refl, reflected, objects, photons);
+                   
+                   return;
+               }
+                   
+               case EMISSIVE:
+               {
+                   return;
+               }
+           }
+               
+       }
 }
