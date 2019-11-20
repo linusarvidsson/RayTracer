@@ -40,6 +40,11 @@ double Vector::magnitude()
     return sqrt(x*x + y*y + z*z);
 }
 
+double Vector::magnitudeSquared()
+{
+    return x*x + y*y + z*z;
+}
+
 Vector Vector::normalize(){
     double magnitude = this->magnitude();
     return Vector(x / magnitude, y / magnitude, z / magnitude);

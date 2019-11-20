@@ -13,6 +13,7 @@ public:
     Vector cross(Vector rhs);
     double dot(Vector rhs);
     double magnitude();
+    double magnitudeSquared();
     Vector normalize();
     
     Vector operator+(Vector rhs);

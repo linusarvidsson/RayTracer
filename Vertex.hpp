@@ -17,6 +17,7 @@ public:
     Vector operator-(Vertex rhs);
     Vertex operator+(Vector rhs);
     double magnitude();
+    double magnitudeSquared();
 };
 
 #endif /* Vertex_hpp */

@@ -16,7 +16,8 @@ using namespace std;
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 800;
 const int L0 = 6000;
-const int M_PHOTONS = 1000;
+const int M_PHOTONS = 1000000;
+const double PHOTON_SEARCH_RADIUS = 0.05;
 
 Octree photonTree;
 
@@ -31,6 +32,8 @@ double reflectionCoefficient(double n1, double n2, double cosi);
 Ray randomDirection(Vertex point, Vector normal);
 float orenNayarBRDF(Vector in, Vector out, Vector normal, double sigma);
 Vertex randomPointOnLight(vector<unique_ptr<Object>> &objects);
+
+mutex bernard;
 
 int main() {
 
@@ -100,7 +103,7 @@ int main() {
     vector<unique_ptr<Object>> objects;
 
     // Add spheres to the vector
-    objects.push_back( make_unique<Sphere>(Sphere(Vertex(3.8, -1, 0, 1), 1.2, colors[0], TRANSPARENT)) ); //5, 4, -1
+    objects.push_back( make_unique<Sphere>(Sphere(Vertex(6, 2, 0, 1), 1.2, colors[0], TRANSPARENT)) ); //5, 4, -1
     
     // Add tetrahedra to the vector
     objects.push_back( make_unique<Tetrahedron>( Tetrahedron(Vertex(5,-2.5,-0.2,1), Vertex(3,-2,0,1), Vertex(5,0,0,1), Vertex(5,-2,2,1), colors[2], LAMBERTIAN)) );
@@ -126,14 +129,14 @@ int main() {
         castPhoton(p, direction, objects, photons);
     }
     
-    photonTree = Octree(100, photons, -4, 14, -7, 7, -6, 6);
+    photonTree = Octree(5000, photons, -4, 14, -7, 7, -6, 6);
     
 
     
     
     //------------- Render Scene ---------------//
 
-    int max_intensity = 0;
+    //int max_intensity = 0;
     
     // Color Channels
     static double red[SCREEN_WIDTH][SCREEN_HEIGHT];
@@ -141,7 +144,7 @@ int main() {
     static double blue[SCREEN_WIDTH][SCREEN_HEIGHT];
     
     // Temporary ray, will be updated with castRay in render loop
-    Ray cameraRay = Ray(Vertex(10, 10, 0, 1), Vertex(10 , 10, -1, 1));
+    //Ray cameraRay = Ray(Vertex(10, 10, 0, 1), Vertex(10 , 10, -1, 1));
     
     cout << "Rendering scene...\n";
     
@@ -164,6 +167,11 @@ int main() {
             
             Ray ray4 = Ray(Vertex(-2, 0, 0, 1), Vertex(-1.6, -0.4 + (i + (-0.25 + 0.5 * drand48()))*0.001, 0.4 - (j + 0.5 + (-0.25 + 0.5 * drand48()))*0.001, 1));
             
+            /*
+            castRay(ray1, objects, 0);
+            castRay(ray2, objects, 0);
+            castRay(ray3, objects, 0);
+            castRay(ray4, objects, 0); */
             
             std::thread t1(castRay, std::ref(ray1), std::ref(objects), 0);
             std::thread t2(castRay, std::ref(ray2), std::ref(objects), 0);
@@ -243,31 +251,68 @@ void castRay(Ray &ray, vector<unique_ptr<Object>> &objects, int depth){
                 
             case LAMBERTIAN:
             {
-                ColorDbl direct = objects[ray.objectIndex]->color() * directLightLambertian(ray.intersection, ray.objectNormal, objects) * (1.0/255.0);
+                bool usePhotonMap = true;
+                vector<shared_ptr<Photon>> photons;
                 
-                //Calculate contribution from photon map
-                ColorDbl caustic;
-                Node* node = photonTree.root->findChild(ray.intersection.x, ray.intersection.y, ray.intersection.z);
-                for (int i = 0; i < node->n; i++) {
-                    if (!node->photons[i]->isShadow) {
-                        caustic = caustic + ColorDbl(1,1,1);
+                // Search photonTree. If intersection is in corner, Monte-Carlo should be used. Otherwise use photon map.
+                usePhotonMap = photonTree.findPhotons(PHOTON_SEARCH_RADIUS, ray.intersection, photons);
+
+                // Check if there are any shadow photons. If there are, use Monte-Carlo.
+                if(usePhotonMap){
+                    for(int i = 0; i < photons.size(); i++){
+                        if (photons[i]->isShadow) {
+                            usePhotonMap = false;
+                            break;
+                        }
                     }
                 }
                 
-                if (drand48() > 0.75) {
-                    //Terminate the ray
-                    //ray.color = direct * 0.7;
-                    ray.color = direct + caustic;
-                    return;
-                } else {
+                
+                if(usePhotonMap){
+                    //cout << "I'm using the photon map!\n";
+                    ColorDbl directLight;
+                    
+                    double denominator = 1 / (M_PI * PHOTON_SEARCH_RADIUS * PHOTON_SEARCH_RADIUS);
+                    
+                    for(int i = 0; i < photons.size(); i++){
+                        directLight = directLight + photons[i]->flux * denominator;
+                    }
+                    
+                    if (drand48() > 0.75) {
+                        ray.color = directLight;
+                        return;
+                    }
+                    
                     Ray sample = randomDirection(ray.intersection, ray.objectNormal);
                     castRay(sample, objects, depth + 1);
                     ColorDbl indirect = sample.color * objects[ray.objectIndex]->color() * (1.0/255.0);
                     
-                    //ray.color = direct * 0.7 + indirect * 0.3;
-                    ray.color = direct + indirect + caustic;
+                    ray.color = indirect + directLight * objects[ray.objectIndex]->color();
+                    
+                    //ray.color = directLight * objects[ray.objectIndex]->color();
                     return;
                 }
+                else{
+                    //cout << "I'm using Monte Carlo!\n";
+                    ColorDbl direct = objects[ray.objectIndex]->color() * directLightLambertian(ray.intersection, ray.objectNormal, objects) * (1.0/255.0);
+                    
+                    
+                    if (drand48() > 0.75) {
+                        //Terminate the ray
+                        //ray.color = direct * 0.7;
+                        ray.color = direct;
+                        return;
+                    } else {
+                        Ray sample = randomDirection(ray.intersection, ray.objectNormal);
+                        castRay(sample, objects, depth + 1);
+                        ColorDbl indirect = sample.color * objects[ray.objectIndex]->color() * (1.0/255.0);
+                        
+                        //ray.color = direct * 0.7 + indirect * 0.3;
+                        ray.color = direct + indirect;
+                        return;
+                    }
+                }
+
             }
                 
             case OREN_NAYAR:
@@ -364,6 +409,7 @@ bool trace(Ray &ray, vector<unique_ptr<Object>> &objects){
     bool intersected = false;
     ray.t = 100000;
     
+    bernard.lock();
     // Check if ray intersects with any objects. Store the object closest to starting point of ray
     for (int i = 0; i < objects.size(); i++){
         if ( objects[i]->rayIntersection(ray) ) {
@@ -371,6 +417,7 @@ bool trace(Ray &ray, vector<unique_ptr<Object>> &objects){
             ray.objectIndex = i;
         }
     }
+    bernard.unlock();
     
     return intersected;
 }

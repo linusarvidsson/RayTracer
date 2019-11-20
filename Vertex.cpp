@@ -35,3 +35,8 @@ double Vertex::magnitude()
 {
     return sqrt(x*x + y*y + z*z);
 }
+
+double Vertex::magnitudeSquared()
+{
+    return x*x + y*y + z*z;
+}

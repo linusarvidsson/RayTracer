@@ -97,6 +97,81 @@ public:
     Octree();
     Octree(int n0, vector<shared_ptr<Photon>> photons, double a, double b, double c, double d, double e, double f);
     
+    bool findPhotons(double radius, Vertex intersection, vector<shared_ptr<Photon>> &photonsFound){
+        
+        Node* node = this->root->findChild(intersection.x, intersection.y, intersection.z);
+        double radiusSquared = radius*radius;
+        
+        int intersections = 0;
+        int intersectedBox = -1;
+        
+        // Check if search radius is inside the box
+        if( abs(node->xmin - intersection.x) < radius) {
+            intersections++;
+            intersectedBox = 0;
+        }
+        if( abs(node->xmax - intersection.x) < radius) {
+            intersections++;
+            intersectedBox = 1;
+        }
+        if( abs(node->ymin - intersection.y) < radius) {
+            intersections++;
+            intersectedBox = 2;
+        }
+        if( abs(node->ymax - intersection.y) < radius) {
+            intersections++;
+            intersectedBox = 3;
+        }
+        if( abs(node->zmin - intersection.z) < radius) {
+            intersections++;
+            intersectedBox = 4;
+        }
+        if( abs(node->zmax - intersection.z) < radius) {
+            intersections++;
+            intersectedBox = 5;
+        }
+        
+        // Return false if intersection is in the corner of the box
+        if (intersections > 1) return false;
+        
+        if (intersections == 1){
+            Node* neighborNode = nullptr;
+            
+            if(intersectedBox == 0) neighborNode = this->root->findChild(intersection.x - radius, intersection.y, intersection.z);
+            if(intersectedBox == 1) neighborNode = this->root->findChild(intersection.x + radius, intersection.y, intersection.z);
+            if(intersectedBox == 2) neighborNode = this->root->findChild(intersection.x, intersection.y - radius, intersection.z);
+            if(intersectedBox == 3) neighborNode = this->root->findChild(intersection.x, intersection.y + radius, intersection.z);
+            if(intersectedBox == 4) neighborNode = this->root->findChild(intersection.x, intersection.y, intersection.z - radius);
+            if(intersectedBox == 5) neighborNode = this->root->findChild(intersection.x, intersection.y, intersection.z + radius);
+            
+            if(neighborNode != nullptr){
+                for (int i = 0; i < neighborNode->n; i++){
+                    
+                    Vertex photonPosition = neighborNode->photons[i]->position;
+                    double distance = (photonPosition - intersection).magnitudeSquared();
+                    
+                    if (distance < radiusSquared) {
+                        //cout << "Add photon\n";
+                        photonsFound.push_back(neighborNode->photons[i]);
+                    }
+                    
+                }
+            }
+        }
+        
+        for (int i = 0; i < node->n; i++) {
+            Vertex photonPosition = node->photons[i]->position;
+            double distance = (photonPosition - intersection).magnitudeSquared();
+            
+            if (distance < radiusSquared) {
+                //cout << "Add photon\n";
+                photonsFound.push_back(node->photons[i]);
+            }
+        }
+        
+        return true;
+    }
+    
 private:
     
 };
